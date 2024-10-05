@@ -12,7 +12,7 @@ export interface EthSignParams {
     nonce?: number;
     from?: string;
     to?: string;
-    gasPrice?: string;
+    gasPrice?: number;
     gasLimit?: number;
     amount?: string;
     tokenAddress?: string;
@@ -116,4 +116,68 @@ export function ethSign(params: EthSignParams) {
     return `0x${serializedTx.toString('hex')}`
 
 
+}
+
+export interface SignOpMainnetTransactionParams {
+    privateKey: string;
+    nonce?: number;
+    from?: string;
+    to?: string;
+    gasLimit?: number;
+    gasPrice?: number;
+    amount?: string;
+    data?: string;
+    chainId?: number;
+    decimal?: number;
+    maxFeePerGas?: number;
+    maxPriorityFeePerGas?: number;
+    tokenAddress?: string;
+    tokenId: string;
+}
+
+export function signOpMainnetTransaction(params: SignOpMainnetTransactionParams): Promise<string> {
+    let wallet = new ethers.Wallet(Buffer.from(params.privateKey, 'hex'));
+    const txData: any = {
+        nonce: ethers.utils.hexlify(params.nonce),//转成成十六进制
+        from: params.from,
+        to: params.to,
+        gasLimit: ethers.utils.hexlify(params.gasLimit),
+        //转换为最小单位后转成十六进制
+        value: ethers.utils.hexlify(ethers.utils.parseUnits(params.amount, params.decimal)),
+        chainId: params.chainId
+    }
+    if (params.maxFeePerGas && params.maxPriorityFeePerGas) {
+        //EIIP-1559
+        txData.maxFeePerGas = numberToHex(params.maxFeePerGas)
+        txData.maxPriorityFeePerGas = numberToHex(params.maxPriorityFeePerGas)
+    } else {
+        //Legacy
+        txData.gasPrice = ethers.utils.hexlify(params.gasPrice)
+    }
+    if (params.tokenAddress && params.tokenAddress !== '0x00') {
+        //token交易
+        let idata: any
+        if (params.tokenId === "0x00") {
+            //ERC20转账
+            const ABI = [
+                'function transfer(address to, uint amount)'
+            ]
+            const iface = new Interface(ABI)
+            idata = iface.encodeFunctionData('transfer', [params.to, ethers.utils.hexlify(ethers.utils.parseUnits(params.amount, params.decimal))])
+        } else {
+            //ERC721转账或兼容代币
+            const ABI = [
+                "function safeTransferFrom(address from, address to, uint256 tokenId)"
+            ]
+            const iface = new Interface(ABI)
+            idata = iface.encodeFunctionData('safeTransferFrom', [wallet.address, params.to, params.tokenId])
+        }
+        txData.data = idata
+        txData.to = params.tokenAddress
+        txData.value = 0
+    }
+    if (params.data) {
+        txData.data = params.data
+    }
+    return wallet.signTransaction(txData)
 }
