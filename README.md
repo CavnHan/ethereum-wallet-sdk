@@ -1,6 +1,7 @@
 ethereum-wallet-sdk
 
-ethereum-wallet-sdk 是一个 以太坊生态SDK，用于通过助记词创建比特币地址并离线签署比特币交易。
+ethereum-wallet-sdk 是一个以太坊生态SDK，用于通过助记词创建比特币地址并离线签署比特币交易。
+目前缺少一些测试用例
 ## 1.✅安装依赖
 
 ```shell
